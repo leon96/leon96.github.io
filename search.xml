@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+  
+    
+    <entry>
+      <title>腾讯云COS静态网站网页访问提示下载问题排查</title>
+      <link href="/2021/09/16/%E8%85%BE%E8%AE%AF%E4%BA%91COS%E9%9D%99%E6%80%81%E7%BD%91%E7%AB%99%E7%BD%91%E9%A1%B5%E8%AE%BF%E9%97%AE%E6%8F%90%E7%A4%BA%E4%B8%8B%E8%BD%BD%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5/"/>
+      <url>/2021/09/16/%E8%85%BE%E8%AE%AF%E4%BA%91COS%E9%9D%99%E6%80%81%E7%BD%91%E7%AB%99%E7%BD%91%E9%A1%B5%E8%AE%BF%E9%97%AE%E6%8F%90%E7%A4%BA%E4%B8%8B%E8%BD%BD%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5/</url>
+      
+        <content type="html"><![CDATA[<h1 id="起因"><a class="markdownIt-Anchor" href="#起因"></a> 起因</h1><p>最近前端想把腾讯云nginx上的静态网站切换到腾讯云COS，建桶上传文件，打开页面就提示下载文件。</p><span id="more"></span><h1 id="问题处理"><a class="markdownIt-Anchor" href="#问题处理"></a> 问题处理</h1><p>网上查到很多人遇到这个问题，在CDN里加一个HTTP Header解决了，于是操作之。<br /><img src="http-header.png" alt="http-header" /><br />兴冲冲打开页面，结果还是提示下载文件，这下没有了头绪。<br />一通排查，后来通过curl -I查看URL返回的头，发现了问题</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">HTTP/2 200</span><br><span class="line">last-modified: Wed, 15 Sep 2021 15:40:03 GMT</span><br><span class="line">server: tencent-cos</span><br><span class="line">date: Thu, 16 Sep 2021 08:15:11 GMT</span><br><span class="line">content-type: application/octet-stream</span><br><span class="line">x-daa-tunnel: hop_count=2</span><br><span class="line">cache-control: max-age=600</span><br><span class="line">content-length: 4573</span><br><span class="line">accept-ranges: bytes</span><br><span class="line">content-disposition: inline</span><br></pre></td></tr></table></figure><p>返回的头部中<code>content-type</code>竟然是<code>application/octet-stream</code>。<br />于是去COS页面查看文件属性，结果：<br /><img src="cos-file-header.png" alt="cos-file-header" /><br /><code>application/octet-stream</code>在RFC 2046<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup>中这样定义的：</p><div class="note class_name">            <p>The “octet-stream” subtype is used to indicate that a body contains<br />arbitrary binary data.</p>          </div><p>任意二进制数据文件，通常只用于文件下载时使用，把该header删除，再访问，这下可以在页面中打开了。<br />问上传文件的开发，他使用的第三方工具上传的，经检查，所有的文件都加的一样的Header, <code>content-type=application/octet-stream</code>。<br />删除所有文件，改用腾讯云自身的工具后检查文件信息，不同类型的加上的是各自对应的Header。<br />访问一切正常，问题搞定。</p><hr class="footnotes-sep" /><section class="footnotes"><ol class="footnotes-list"><li id="fn1" class="footnote-item"><p><a href="https://datatracker.ietf.org/doc/html/rfc2046">RFC 2046</a> <a href="#fnref1" class="footnote-backref">↩︎</a></p></li></ol></section>]]></content>
+      
+      
+      <categories>
+          
+          <category> 问题排查 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 腾讯云 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+  
+  
+</search>
