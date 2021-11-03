@@ -4,6 +4,31 @@
   
     
     <entry>
+      <title>Prometheus使用consul自动发现遇到的问题</title>
+      <link href="/2021/11/03/Prometheus%E4%BD%BF%E7%94%A8consul%E8%87%AA%E5%8A%A8%E5%8F%91%E7%8E%B0%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98/"/>
+      <url>/2021/11/03/Prometheus%E4%BD%BF%E7%94%A8consul%E8%87%AA%E5%8A%A8%E5%8F%91%E7%8E%B0%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98/</url>
+      
+        <content type="html"><![CDATA[<h2 id="起因"><a class="markdownIt-Anchor" href="#起因"></a> 起因</h2><p>某日，开发人员找我说发现grafana里主机有一部分不见了，由于监控也不是我负责，出于帮忙的态度，上监控看看。</p><span id="more"></span><h2 id="问题排查"><a class="markdownIt-Anchor" href="#问题排查"></a> 问题排查</h2><p>我们的grafana后端接的是thanos，又根据配置找到后端prometheus，一查数据，果然在一小时左右的时候，那台机器就没有数据了，进入target页面查了一下，这台服务器的target没有了。<br />连上服务器，查看了一下配置，这个target用的consul自动发现，上consul搜了一下，server还在，这就有点奇怪了，我们的consul里服务有1000多个，也不算多，怎么就丢了配置呢？<br />于是开始仔细分析prometheus和consul的配置，具体配置如下：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">- job_name: &#x27;test&#x27;</span><br><span class="line">  consul_sd_configs:</span><br><span class="line">  - server: &#x27;xxxxxxxxx&#x27;</span><br><span class="line">    services: []</span><br><span class="line">  relabel_configs:</span><br><span class="line">    - source_labels: [__meta_consul_tags]</span><br><span class="line">      regex: .*local-prometheus.*</span><br><span class="line">      action: drop</span><br><span class="line">    - source_labels: [__meta_consul_tags]</span><br><span class="line">      regex: .*xxxx-test.*</span><br><span class="line">      action: keep</span><br><span class="line">    - regex: __meta_consul_service_metadata_(.+)</span><br><span class="line">      action: labelmap</span><br></pre></td></tr></table></figure><p>其中第二项是只保留regex相关的target，但是并没有对整个consul里的services做过滤。<br />像这种job配了很多种，于是怀疑是这方面处理问题。google了一下发现<code>prometheus_sd_discovered_targets</code>这个metrics记录了发现target的数目，一查果然发现对不上数据，我们有1000多个services，每个job只发现了700多个，但是还在不断的上涨，只是很慢。<br />检查服务启动时间，发现刚好是1小时以前reload过，水落石出，问题就出在这了。<br />因为没有对consul发现的结果做过滤，所有的job都是拉去全量结果，然后过滤的。</p><h2 id="问题处理"><a class="markdownIt-Anchor" href="#问题处理"></a> 问题处理</h2><p>查找prometheus官方文档，consul_sd_config里有个tags选项，可以把discovery的services结果过滤，联系相关同事配上测试，解决。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 问题排查 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Prometheus </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>CentOS切换Ubuntu中遇到的小坑</title>
       <link href="/2021/10/12/CentOS%E5%88%87%E6%8D%A2Ubuntu%E4%B8%AD%E9%81%87%E5%88%B0%E7%9A%84%E5%B0%8F%E5%9D%91/"/>
       <url>/2021/10/12/CentOS%E5%88%87%E6%8D%A2Ubuntu%E4%B8%AD%E9%81%87%E5%88%B0%E7%9A%84%E5%B0%8F%E5%9D%91/</url>
